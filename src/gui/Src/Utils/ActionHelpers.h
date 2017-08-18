@@ -4,7 +4,7 @@
 #include <QAction>
 
 template<class Base>
-class ActionHelper
+class ActionHelperBase
 {
 private:
     Base* getBase()
@@ -12,6 +12,10 @@ private:
         return static_cast<Base*>(this);
     }
 
+    virtual QWidget* getParent() = 0;
+    virtual bool connectWithObject() = 0;
+
+private:
     struct ActionShortcut
     {
         QAction* action;
@@ -42,16 +46,19 @@ private:
     template<class T> // lambda or base member pointer
     inline QAction* connectAction(QAction* action, T callback)
     {
-        QObject::connect(action, &QAction::triggered, getBase(), callback);
+        if(connectWithObject())
+            QObject::connect(action, &QAction::triggered, getBase(), callback);
+        else
+            QObject::connect(action, &QAction::triggered, callback);
         return action;
     }
 
-    inline QAction* connectShortcutAction(QAction* action, const char* shortcut)
+    virtual inline QAction* connectShortcutAction(QAction* action, const char* shortcut)
     {
         actionShortcutPairs.push_back(ActionShortcut(action, shortcut));
         action->setShortcut(ConfigShortcut(shortcut));
         action->setShortcutContext(Qt::WidgetShortcut);
-        getBase()->addAction(action);
+        getParent()->addAction(action);
         return action;
     }
 
@@ -64,12 +71,12 @@ protected:
 
     inline QMenu* makeMenu(const QString & title)
     {
-        return new QMenu(title, getBase());
+        return new QMenu(title, getParent());
     }
 
     inline QMenu* makeMenu(const QIcon & icon, const QString & title)
     {
-        QMenu* menu = new QMenu(title, getBase());
+        QMenu* menu = new QMenu(title, getParent());
         menu->setIcon(icon);
         return menu;
     }
@@ -77,13 +84,13 @@ protected:
     template<typename T>
     inline QAction* makeAction(const QString & text, T slot)
     {
-        return connectAction(new QAction(text, getBase()), slot);
+        return connectAction(new QAction(text, getParent()), slot);
     }
 
     template<typename T>
     inline QAction* makeAction(const QIcon & icon, const QString & text, T slot)
     {
-        return connectAction(new QAction(icon, text, getBase()), slot);
+        return connectAction(new QAction(icon, text, getParent()), slot);
     }
 
     template<typename T>
@@ -124,6 +131,58 @@ protected:
 
 private:
     std::vector<ActionShortcut> actionShortcutPairs;
+
+private:
+    template<typename Base>
+    friend class ActionHelper;
+
+    template<typename Base, typename>
+    friend class ProxyActionHelper;
+};
+
+template<typename Base>
+class ActionHelper : public ActionHelperBase<Base>
+{
+private:
+    virtual QWidget* getParent() override
+    {
+        return getBase();
+    }
+
+    virtual bool connectWithObject() override
+    {
+        return true;
+    }
+};
+
+
+template<typename Base, typename Parent>
+class ProxyActionHelper : public ActionHelperBase<Base>
+{
+public:
+    ProxyActionHelper(Parent* parent)
+        : parentWidget(parent)
+    {
+    }
+
+private:
+    virtual QWidget* getParent() override
+    {
+        return parentWidget;
+    }
+
+    virtual bool connectWithObject() override
+    {
+        return false;
+    }
+
+    virtual inline QAction* connectShortcutAction(QAction* action, const char* shortcut) override
+    {
+        return ((ActionHelperBase<Parent>*)parentWidget)->connectShortcutAction(action, shortcut);
+    }
+
+protected:
+    Parent* parentWidget;
 };
 
 #endif

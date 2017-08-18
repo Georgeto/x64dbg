@@ -291,7 +291,8 @@ HEADERS += \
     Src/Utils/MRUList.h \
     Src/Gui/LocalVarsView.h \
     Src/Gui/MessagesBreakpoints.h \
-    Src/Gui/AboutDialog.h
+    Src/Gui/AboutDialog.h \
+    Src/Gui/BreakpointMenu.h
     
 
 FORMS += \

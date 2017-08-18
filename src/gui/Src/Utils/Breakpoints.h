@@ -17,6 +17,7 @@ class Breakpoints : public QObject
 
 public:
     explicit Breakpoints(QObject* parent = 0);
+    static QMenu* makeMenu();
     static void setBP(BPXTYPE type, duint va);
     static void enableBP(const BRIDGEBP & bp);
     static void enableBP(BPXTYPE type, duint va);
